@@ -1,0 +1,23 @@
+{
+  "name": "collab-hub-local-rpi",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Local-area Collab-Hub server for Raspberry Pi",
+  "main": "local-main.js",
+  "scripts": {
+    "start": "node local-main.js",
+    "start-osc-bridge": "node osc-bridge.js",
+    "start:all": "node local-main.js & node osc-bridge.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "express": "^4.19.0",
+    "osc": "^2.4.1",
+    "socket.io": "^4.7.0",
+    "socket.io-client": "^4.7.0",
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

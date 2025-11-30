@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Collab-Hub Web Interface - Version Two</title>
+    <link rel="shortcut icon" href="./favicon.ico" type="image/x-icon" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="./socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <script src="/ch-web.js"></script>
+  </head>
+  <body class="min-h-screen bg-slate-900 text-slate-100">
+    <!-- Ping Bar -->
+    <div
+      class="w-full bg-slate-800 border-b border-slate-700 py-1 px-4 flex justify-end text-xs"
+    >
+      <p id="ping" class="text-emerald-400">--</p>
+    </div>
+
+    <div class="max-w-6xl mx-auto px-4 py-6 flex flex-col gap-6">
+      <div class="flex justify-end text-xs mb-2">
+        <a
+          href="/designer.html"
+          class="text-sky-400 hover:text-sky-300 underline underline-offset-2"
+        >
+          Open Interface Designer
+        </a>
+      </div>
+      <!-- Header -->
+      <header class="flex items-center justify-between gap-4">
+        <div>
+          <p class="text-xl font-semibold tracking-wide text-slate-100 px-2">
+            Collab-Hub - Web Interface - v0.3.5
+          </p>
+        </div>
+        <div class="shrink-0">
+          <img
+            src="images/Collab-Hub.png"
+            alt="Collab-Hub"
+            class="h-14 w-auto"
+          />
+        </div>
+      </header>
+
+      <!-- Messages -->
+      <section
+        class="bg-slate-800/70 border border-slate-700 rounded-xl shadow-sm"
+      >
+        <div
+          class="border-b border-slate-700 px-4 py-2 flex items-center justify-between"
+        >
+          <h2 class="text-sm font-semibold tracking-wide text-slate-100">
+            Messages
+          </h2>
+          <button
+            type="button"
+            class="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-slate-500 text-slate-300 text-xs hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            aria-label="Toggle Messages section"
+            onclick="document.getElementById('card-messages-body').classList.toggle('hidden')"
+          >
+            <span aria-hidden="true">–</span>
+          </button>
+        </div>
+        <div id="card-messages-body" class="p-4 flex flex-col gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex flex-col gap-2">
+              <h3
+                class="text-xs font-semibold uppercase tracking-wide text-slate-400"
+              >
+                Incoming Messages
+              </h3>
+              <div
+                class="min-h-[120px] max-h-64 overflow-y-auto rounded-lg bg-slate-900/60 border border-slate-700 px-3 py-2"
+                role="region"
+                aria-label="Incoming messages"
+              >
+                <ul
+                  id="incoming-messages"
+                  class="text-xs space-y-1"
+                  aria-live="polite"
+                ></ul>
+              </div>
+            </div>
+            <div class="flex flex-col gap-2">
+              <h3
+                class="text-xs font-semibold uppercase tracking-wide text-slate-400"
+              >
+                Chat Messages
+              </h3>
+              <div
+                class="min-h-[120px] max-h-64 overflow-y-auto rounded-lg bg-slate-900/60 border border-slate-700 px-3 py-2"
+                role="region"
+                aria-label="Chat messages"
+              >
+                <ul
+                  id="messages"
+                  class="text-xs space-y-1"
+                  aria-live="polite"
+                ></ul>
+              </div>
+            </div>
+          </div>
+          <div class="mt-2">
+            <h3
+              class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1"
+            >
+              Send chat a message
+            </h3>
+            <form
+              id="chat-form"
+              class="w-full flex flex-col gap-2 items-stretch"
+            >
+              <input
+                id="target-text"
+                type="text"
+                placeholder="Target (no quotes)"
+                onclick="return false"
+                class="w-full rounded-md border border-slate-600 bg-slate-900/70 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              />
+              <input
+                id="m"
+                autocomplete="off"
+                type="text"
+                placeholder="Chat Message (no quotes)"
+                onclick="return false"
+                class="w-full rounded-md border border-slate-600 bg-slate-900/70 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              />
+              <button
+                type="submit"
+                class="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-900 shadow hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full md:w-auto self-end"
+              >
+                Send
+              </button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- Events -->
+      <section
+        class="bg-slate-800/70 border border-slate-700 rounded-xl shadow-sm"
+      >
+        <div
+          class="border-b border-slate-700 px-4 py-2 flex items-center justify-between"
+        >
+          <h2 class="text-sm font-semibold tracking-wide text-slate-100">
+            Trigger an event
+          </h2>
+          <button
+            type="button"
+            class="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-slate-500 text-slate-300 text-xs hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            aria-label="Toggle Trigger an event section"
+            onclick="document.getElementById('card-events-body').classList.toggle('hidden')"
+          >
+            <span aria-hidden="true">–</span>
+          </button>
+        </div>
+        <div
+          id="card-events-body"
+          class="p-4 grid grid-cols-1 md:grid-cols-4 gap-4 text-sm"
+        >
+          <div class="flex flex-col gap-2">
+            <p class="text-xs uppercase tracking-wide text-slate-400">
+              publish - all
+            </p>
+            <button
+              id="event-button1"
+              value="webEvent1"
+              onclick="return false"
+              class="rounded-md bg-emerald-500 px-3 py-2 text-left text-slate-900 hover:bg-emerald-400 text-sm shadow"
+            >
+              event webEvent1
+            </button>
+            <input
+              id="event-button1-text"
+              type="text"
+              placeholder="change header"
+              size="14"
+              onclick="return false"
+              class="rounded-md border border-slate-600 bg-slate-900/70 px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            />
+          </div>
+          <div class="flex flex-col gap-2">
+            <p class="text-xs uppercase tracking-wide text-slate-400">
+              publish - "123"
+            </p>
+            <button
+              id="event-button2"
+              value="webEvent2"
+              onclick="return false"
+              class="rounded-md bg-emerald-500 px-3 py-2 text-left text-slate-900 hover:bg-emerald-400 text-sm shadow"
+            >
+              event webEvent2
+            </button>
+            <input
+              id="event-button2-text"
+              type="text"
+              placeholder="change header"
+              size="14"
+              onclick="return false"
+              class="rounded-md border border-slate-600 bg-slate-900/70 px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            />
+          </div>
+          <div class="flex flex-col gap-2">
+            <p class="text-xs uppercase tracking-wide text-slate-400">
+              push - all
+            </p>
+            <button
+              id="event-button3"
+              value="webEvent3"
+              onclick="return false"
+              class="rounded-md bg-emerald-500 px-3 py-2 text-left text-slate-900 hover:bg-emerald-400 text-sm shadow"
+            >
+              event webEvent3
+            </button>
+            <input
+              id="event-button3-text"
+              type="text"
+              placeholder="change header"
+              size="14"
+              onclick="return false"
+              class="rounded-md border border-slate-600 bg-slate-900/70 px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            />
+          </div>
+          <div class="flex flex-col gap-2">
+            <p class="text-xs uppercase tracking-wide text-slate-400">
+              push - "123"
+            </p>
+            <button
+              id="event-button4"
+              value="webEvent4"
+              onclick="return false"
+              class="rounded-md bg-emerald-500 px-3 py-2 text-left text-slate-900 hover:bg-emerald-400 text-sm shadow"
+            >
+              event webEvent4
+            </button>
+            <input
+              id="event-button4-text"
+              type="text"
+              placeholder="change header"
+              size="14"
+              onclick="return false"
+              class="rounded-md border border-slate-600 bg-slate-900/70 px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            />
+          </div>
+        </div>
+      </section>
+
+      <!-- Controls -->
+      <section
+        class="bg-slate-800/70 border border-slate-700 rounded-xl shadow-sm"
+      >
+        <div
+          class="border-b border-slate-700 px-4 py-2 flex items-center justify-between"
+        >
+          <h2 class="text-sm font-semibold tracking-wide text-slate-100">
+            Send control values
+          </h2>
+          <button
+            type="button"
+            class="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-slate-500 text-slate-300 text-xs hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            aria-label="Toggle Send control values section"
+            onclick="document.getElementById('card-controls-body').classList.toggle('hidden')"
+          >
+            <span aria-hidden="true">–</span>
+          </button>
+        </div>
+        <div
+          id="card-controls-body"
+          class="p-4 grid grid-cols-1 md:grid-cols-4 gap-4 text-sm"
+        >
+          <div class="flex flex-col gap-2">
+            <p class="text-xs uppercase tracking-wide text-slate-400">
+              publish - all
+            </p>
+            <label
+              for="control-webSlider1-text"
+              id="slider1-label"
+              class="text-xs"
+            >
+              control webSlider1 50
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="127"
+              value="64"
+              name="slider1"
+              id="control-webSlider1"
+              header="webSlider1"
+              class="w-full accent-emerald-500"
+            />
+            <input
+              id="control-webSlider1-text"
+              type="text"
+              placeholder="change header"
+              size="14"
+              onclick="return false"
+              class="rounded-md border border-slate-600 bg-slate-900/70 px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            />
+          </div>
+          <div class="flex flex-col gap-2">
+            <p class="text-xs uppercase tracking-wide text-slate-400">
+              publish - "123"
+            </p>
+            <label
+              for="control-webSlider2-text"
+              id="slider2-label"
+              class="text-xs"
+            >
+              control webSlider2 50
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="127"
+              value="64"
+              name="slider2"
+              id="control-webSlider2"
+              header="webSlider2"
+              class="w-full accent-emerald-500"
+            />
+            <input
+              id="control-webSlider2-text"
+              type="text"
+              placeholder="change header"
+              size="14"
+              onclick="return false"
+              class="rounded-md border border-slate-600 bg-slate-900/70 px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            />
+          </div>
+          <div class="flex flex-col gap-2">
+            <p class="text-xs uppercase tracking-wide text-slate-400">
+              push - all
+            </p>
+            <label
+              for="control-webSlider3-text"
+              id="slider3-label"
+              class="text-xs"
+            >
+              control webSlider3 50
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="127"
+              value="64"
+              name="slider3"
+              id="control-webSlider3"
+              header="webSlider3"
+              class="w-full accent-emerald-500"
+            />
+            <input
+              id="control-webSlider3-text"
+              type="text"
+              placeholder="change header"
+              size="14"
+              onclick="return false"
+              class="rounded-md border border-slate-600 bg-slate-900/70 px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            />
+          </div>
+          <div class="flex flex-col gap-2">
+            <p class="text-xs uppercase tracking-wide text-slate-400">
+              push - "123"
+            </p>
+            <label
+              for="control-webSlider4-text"
+              id="slider4-label"
+              class="text-xs"
+            >
+              control webSlider4 50
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="127"
+              value="64"
+              name="slider4"
+              id="control-webSlider4"
+              header="webSlider4"
+              class="w-full accent-emerald-500"
+            />
+            <input
+              id="control-webSlider4-text"
+              type="text"
+              placeholder="change header"
+              size="14"
+              onclick="return false"
+              class="rounded-md border border-slate-600 bg-slate-900/70 px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            />
+          </div>
+        </div>
+      </section>
+
+      <!-- Users -->
+      <section
+        class="bg-slate-800/70 border border-slate-700 rounded-xl shadow-sm"
+      >
+        <div
+          class="border-b border-slate-700 px-4 py-2 flex items-center justify-between"
+        >
+          <h2 class="text-sm font-semibold tracking-wide text-slate-100">
+            Users
+          </h2>
+          <button
+            type="button"
+            class="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-slate-500 text-slate-300 text-xs hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            aria-label="Toggle Users section"
+            onclick="document.getElementById('card-users-body').classList.toggle('hidden')"
+          >
+            <span aria-hidden="true">–</span>
+          </button>
+        </div>
+        <div id="card-users-body" class="p-4 flex flex-col md:flex-row gap-6">
+          <div
+            class="flex-1 flex flex-col gap-2"
+            aria-label="All users"
+            role="region"
+          >
+            <h3
+              class="text-xs font-semibold uppercase tracking-wide text-slate-400"
+            >
+              All Users
+            </h3>
+            <div
+              class="min-h-[120px] max-h-64 overflow-y-auto rounded-lg bg-slate-900/60 border border-slate-700 px-3 py-2"
+            >
+              <ul id="usersList" class="text-xs space-y-1"></ul>
+            </div>
+          </div>
+          <div class="w-full md:w-72 flex flex-col gap-3">
+            <div class="flex flex-col gap-2">
+              <span
+                class="text-xs font-semibold uppercase tracking-wide text-slate-400"
+              >
+                Current Username / ID
+              </span>
+              <div
+                class="rounded-md border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm"
+              >
+                <p id="webUsername" class="truncate"></p>
+              </div>
+            </div>
+            <div>
+              <input
+                id="username-text"
+                type="text"
+                placeholder="Change Username"
+                size="14"
+                onclick="return false"
+                class="w-full rounded-md border border-slate-600 bg-slate-900/70 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              />
+            </div>
+          </div>
+          <div
+            class="flex-1 flex flex-col gap-2"
+            aria-label="Other users"
+            role="region"
+          >
+            <h3
+              class="text-xs font-semibold uppercase tracking-wide text-slate-400"
+            >
+              Other Users
+            </h3>
+            <div
+              class="min-h-[120px] max-h-64 overflow-y-auto rounded-lg bg-slate-900/60 border border-slate-700 px-3 py-2"
+            >
+              <ul id="otherUserList" class="text-xs space-y-1"></ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Events Lists -->
+      <section
+        class="bg-slate-800/70 border border-slate-700 rounded-xl shadow-sm"
+      >
+        <div
+          class="border-b border-slate-700 px-4 py-2 flex items-center justify-between"
+        >
+          <h2 class="text-sm font-semibold tracking-wide text-slate-100">
+            Published Events
+          </h2>
+          <button
+            type="button"
+            class="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-slate-500 text-slate-300 text-xs hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            aria-label="Toggle Published Events section"
+            onclick="document.getElementById('card-eventslist-body').classList.toggle('hidden')"
+          >
+            <span aria-hidden="true">–</span>
+          </button>
+        </div>
+        <div
+          id="card-eventslist-body"
+          class="p-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs"
+        >
+          <div
+            class="flex flex-col gap-2"
+            aria-label="All events"
+            role="region"
+          >
+            <h3 class="font-semibold uppercase tracking-wide text-slate-400">
+              All Events
+            </h3>
+            <ul
+              id="allEventsList"
+              class="min-h-[80px] max-h-64 overflow-y-auto rounded-lg bg-slate-900/60 border border-slate-700 px-3 py-2 space-y-1"
+            ></ul>
+          </div>
+          <div
+            class="flex flex-col gap-2"
+            aria-label="Available events"
+            role="region"
+          >
+            <h3 class="font-semibold uppercase tracking-wide text-slate-400">
+              Available Events
+            </h3>
+            <ul
+              id="availableEventsList"
+              class="min-h-[80px] max-h-64 overflow-y-auto rounded-lg bg-slate-900/60 border border-slate-700 px-3 py-2 space-y-1"
+            ></ul>
+          </div>
+          <div
+            class="flex flex-col gap-2"
+            aria-label="Observed events"
+            role="region"
+          >
+            <h3 class="font-semibold uppercase tracking-wide text-slate-400">
+              Observed Events
+            </h3>
+            <ul
+              id="observedEventsList"
+              class="min-h-[80px] max-h-64 overflow-y-auto rounded-lg bg-slate-900/60 border border-slate-700 px-3 py-2 space-y-1"
+            ></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Controls Lists -->
+      <section
+        class="bg-slate-800/70 border border-slate-700 rounded-xl shadow-sm"
+      >
+        <div
+          class="border-b border-slate-700 px-4 py-2 flex items-center justify-between"
+        >
+          <h2 class="text-sm font-semibold tracking-wide text-slate-100">
+            Published Controls
+          </h2>
+          <button
+            type="button"
+            class="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-slate-500 text-slate-300 text-xs hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            aria-label="Toggle Published Controls section"
+            onclick="document.getElementById('card-controlslist-body').classList.toggle('hidden')"
+          >
+            <span aria-hidden="true">–</span>
+          </button>
+        </div>
+        <div
+          id="card-controlslist-body"
+          class="p-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs"
+        >
+          <div
+            class="flex flex-col gap-2"
+            aria-label="All controls"
+            role="region"
+          >
+            <h3 class="font-semibold uppercase tracking-wide text-slate-400">
+              All Controls
+            </h3>
+            <ul
+              id="allControlsList"
+              class="min-h-[80px] max-h-64 overflow-y-auto rounded-lg bg-slate-900/60 border border-slate-700 px-3 py-2 space-y-1"
+            ></ul>
+          </div>
+          <div
+            class="flex flex-col gap-2"
+            aria-label="Available controls"
+            role="region"
+          >
+            <h3 class="font-semibold uppercase tracking-wide text-slate-400">
+              Available Controls
+            </h3>
+            <ul
+              id="availableControlsList"
+              class="min-h-[80px] max-h-64 overflow-y-auto rounded-lg bg-slate-900/60 border border-slate-700 px-3 py-2 space-y-1"
+            ></ul>
+          </div>
+          <div
+            class="flex flex-col gap-2"
+            aria-label="Observed controls"
+            role="region"
+          >
+            <h3 class="font-semibold uppercase tracking-wide text-slate-400">
+              Observed Controls
+            </h3>
+            <ul
+              id="observedControlsList"
+              class="min-h-[80px] max-h-64 overflow-y-auto rounded-lg bg-slate-900/60 border border-slate-700 px-3 py-2 space-y-1"
+            ></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Rooms -->
+      <section
+        class="bg-slate-800/70 border border-slate-700 rounded-xl shadow-sm mb-4"
+      >
+        <div
+          class="border-b border-slate-700 px-4 py-2 flex items-center justify-between"
+        >
+          <h2 class="text-sm font-semibold tracking-wide text-slate-100">
+            Rooms
+          </h2>
+          <button
+            type="button"
+            class="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-slate-500 text-slate-300 text-xs hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            aria-label="Toggle Rooms section"
+            onclick="document.getElementById('card-rooms-body').classList.toggle('hidden')"
+          >
+            <span aria-hidden="true">–</span>
+          </button>
+        </div>
+        <div
+          id="card-rooms-body"
+          class="p-4 grid grid-cols-1 md:grid-cols-4 gap-4 text-xs"
+        >
+          <div class="flex flex-col gap-2" aria-label="All rooms" role="region">
+            <h3 class="font-semibold uppercase tracking-wide text-slate-400">
+              All Rooms
+            </h3>
+            <ul
+              id="allRoomsList"
+              class="min-h-[80px] max-h-64 overflow-y-auto rounded-lg bg-slate-900/60 border border-slate-700 px-3 py-2 space-y-1"
+            ></ul>
+          </div>
+          <div
+            class="flex flex-col gap-2"
+            aria-label="Available rooms"
+            role="region"
+          >
+            <h3 class="font-semibold uppercase tracking-wide text-slate-400">
+              Available Rooms
+            </h3>
+            <ul
+              id="availableRoomsList"
+              class="min-h-[80px] max-h-64 overflow-y-auto rounded-lg bg-slate-900/60 border border-slate-700 px-3 py-2 space-y-1"
+            ></ul>
+          </div>
+          <div class="flex flex-col gap-2" aria-label="My rooms" role="region">
+            <h3 class="font-semibold uppercase tracking-wide text-slate-400">
+              My Rooms
+            </h3>
+            <ul
+              id="myRoomsList"
+              class="min-h-[80px] max-h-64 overflow-y-auto rounded-lg bg-slate-900/60 border border-slate-700 px-3 py-2 space-y-1"
+            ></ul>
+          </div>
+          <div class="flex flex-col gap-2 md:items-stretch">
+            <h3 class="font-semibold uppercase tracking-wide text-slate-400">
+              Create / Join Room
+            </h3>
+            <form
+              id="join-room-form"
+              onsubmit="return false"
+              class="flex flex-col gap-2"
+            >
+              <input
+                id="j"
+                autocomplete="off"
+                type="text"
+                placeholder="Join Room (no quotes)"
+                class="w-full rounded-md border border-slate-600 bg-slate-900/70 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              />
+              <button
+                type="submit"
+                class="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-900 shadow hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                Create
+              </button>
+            </form>
+          </div>
+        </div>
+      </section>
+    </div>
+    <script>
+      // Simple card toggle behavior for header buttons
+      document.addEventListener("DOMContentLoaded", function () {
+        var toggles = document.querySelectorAll("[data-card-toggle]");
+        toggles.forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var controlsId = btn.getAttribute("aria-controls");
+            if (!controlsId) return;
+            var body = document.getElementById(controlsId);
+            if (!body) return;
+
+            var isExpanded = btn.getAttribute("aria-expanded") === "true";
+            btn.setAttribute("aria-expanded", String(!isExpanded));
+            body.classList.toggle("hidden", isExpanded);
+            btn.textContent = isExpanded ? "+" : "–";
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

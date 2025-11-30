@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Collab-Hub Interface Designer</title>
+    <link rel="shortcut icon" href="./favicon.ico" type="image/x-icon" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="./socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <script src="/designer.js"></script>
+  </head>
+  <body class="min-h-screen bg-slate-900 text-slate-100">
+    <!-- Ping Bar -->
+    <div
+      class="w-full bg-slate-800 border-b border-slate-700 py-1 px-4 flex justify-end text-xs"
+    >
+      <p id="ping" class="text-emerald-400">--</p>
+    </div>
+
+    <div class="max-w-6xl mx-auto px-4 py-6 flex flex-col gap-6">
+      <!-- Header -->
+      <header class="flex items-center justify-between gap-4">
+        <div>
+          <p class="text-xl font-semibold tracking-wide text-slate-100 px-2">
+            Collab-Hub - Interface Designer
+          </p>
+        </div>
+        <div class="shrink-0">
+          <img
+            src="images/Collab-Hub.png"
+            alt="Collab-Hub"
+            class="h-14 w-auto"
+          />
+        </div>
+      </header>
+
+      <!-- Messages (kept at top, same IDs as index-test) -->
+      <section
+        class="bg-slate-800/70 border border-slate-700 rounded-xl shadow-sm"
+      >
+        <div
+          class="border-b border-slate-700 px-4 py-2 flex items-center justify-between"
+        >
+          <h2 class="text-sm font-semibold tracking-wide text-slate-100">
+            Messages
+          </h2>
+          <button
+            type="button"
+            class="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-slate-500 text-slate-300 text-xs hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            aria-label="Toggle Messages section"
+            onclick="document.getElementById('card-messages-body').classList.toggle('hidden')"
+          >
+            <span aria-hidden="true">–</span>
+          </button>
+        </div>
+        <div id="card-messages-body" class="p-4 flex flex-col gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex flex-col gap-2">
+              <h3
+                class="text-xs font-semibold uppercase tracking-wide text-slate-400"
+              >
+                Incoming Messages
+              </h3>
+              <div
+                class="min-h-[120px] max-h-64 overflow-y-auto rounded-lg bg-slate-900/60 border border-slate-700 px-3 py-2"
+                role="region"
+                aria-label="Incoming messages"
+              >
+                <ul
+                  id="incoming-messages"
+                  class="text-xs space-y-1"
+                  aria-live="polite"
+                ></ul>
+              </div>
+            </div>
+            <div class="flex flex-col gap-2">
+              <h3
+                class="text-xs font-semibold uppercase tracking-wide text-slate-400"
+              >
+                Chat Messages
+              </h3>
+              <div
+                class="min-h-[120px] max-h-64 overflow-y-auto rounded-lg bg-slate-900/60 border border-slate-700 px-3 py-2"
+                role="region"
+                aria-label="Chat messages"
+              >
+                <ul
+                  id="messages"
+                  class="text-xs space-y-1"
+                  aria-live="polite"
+                ></ul>
+              </div>
+            </div>
+          </div>
+          <div class="mt-2">
+            <h3
+              class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1"
+            >
+              Send chat a message
+            </h3>
+            <form
+              id="chat-form"
+              class="w-full flex flex-col gap-2 items-stretch"
+            >
+              <input
+                id="target-text"
+                type="text"
+                placeholder="Target (no quotes)"
+                onclick="return false"
+                class="w-full rounded-md border border-slate-600 bg-slate-900/70 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              />
+              <input
+                id="m"
+                autocomplete="off"
+                type="text"
+                placeholder="Chat Message (no quotes)"
+                onclick="return false"
+                class="w-full rounded-md border border-slate-600 bg-slate-900/70 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              />
+              <button
+                type="submit"
+                class="inline-flex items-center justify-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-900 shadow hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full md:w-auto self-end"
+              >
+                Send
+              </button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- Users (mirrors index-test layout, truncatable) -->
+      <section
+        class="bg-slate-800/70 border border-slate-700 rounded-xl shadow-sm"
+      >
+        <div
+          class="border-b border-slate-700 px-4 py-2 flex items-center justify-between"
+        >
+          <h2 class="text-sm font-semibold tracking-wide text-slate-100">
+            Users
+          </h2>
+          <button
+            type="button"
+            class="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-slate-500 text-slate-300 text-xs hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            aria-label="Toggle Users section"
+            onclick="document.getElementById('card-users-body').classList.toggle('hidden')"
+          >
+            <span aria-hidden="true">–</span>
+          </button>
+        </div>
+        <div id="card-users-body" class="p-4 flex flex-col md:flex-row gap-6">
+          <div
+            class="flex-1 flex flex-col gap-2"
+            aria-label="All users"
+            role="region"
+          >
+            <h3
+              class="text-xs font-semibold uppercase tracking-wide text-slate-400"
+            >
+              All Users
+            </h3>
+            <div
+              class="min-h-[120px] max-h-64 overflow-y-auto rounded-lg bg-slate-900/60 border border-slate-700 px-3 py-2"
+            >
+              <ul id="usersList" class="text-xs space-y-1"></ul>
+            </div>
+          </div>
+          <div class="w-full md:w-72 flex flex-col gap-3">
+            <div class="flex flex-col gap-2">
+              <span
+                class="text-xs font-semibold uppercase tracking-wide text-slate-400"
+              >
+                Current Username / ID
+              </span>
+              <div
+                class="rounded-md border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm"
+              >
+                <p id="webUsername" class="truncate"></p>
+              </div>
+            </div>
+            <div>
+              <input
+                id="username-text"
+                type="text"
+                placeholder="Change Username"
+                size="14"
+                onclick="return false"
+                class="w-full rounded-md border border-slate-600 bg-slate-900/70 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              />
+            </div>
+          </div>
+          <div
+            class="flex-1 flex flex-col gap-2"
+            aria-label="Other users"
+            role="region"
+          >
+            <h3
+              class="text-xs font-semibold uppercase tracking-wide text-slate-400"
+            >
+              Other Users
+            </h3>
+            <div
+              class="min-h-[120px] max-h-64 overflow-y-auto rounded-lg bg-slate-900/60 border border-slate-700 px-3 py-2"
+            >
+              <ul id="otherUserList" class="text-xs space-y-1"></ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Interface Designer -->
+      <section
+        class="bg-slate-800/70 border border-slate-700 rounded-xl shadow-sm mb-4"
+      >
+        <div
+          class="border-b border-slate-700 px-4 py-2 flex items-center justify-between"
+        >
+          <h2 class="text-sm font-semibold tracking-wide text-slate-100">
+            Interface Designer
+          </h2>
+        </div>
+        <div class="p-4 flex flex-col gap-3">
+          <div class="flex justify-end">
+            <button
+              id="toggle-editor"
+              type="button"
+              class="inline-flex items-center justify-center rounded-md bg-slate-700 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-slate-600 shadow"
+              title="Show or hide the interface editor controls"
+            >
+              Edit Interface
+            </button>
+          </div>
+          <div
+            class="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm items-start"
+          >
+            <!-- Palette -->
+            <div
+              id="designer-editor-panel"
+              class="md:col-span-1 flex flex-col gap-3"
+            >
+              <h3
+                class="text-xs font-semibold uppercase tracking-wide text-slate-400"
+              >
+                Add Elements
+              </h3>
+              <button
+                id="add-event-widget"
+                type="button"
+                class="rounded-md bg-emerald-500 px-3 py-2 text-left text-slate-900 hover:bg-emerald-400 text-sm shadow"
+                title="Add a button that sends an event message"
+              >
+                + Add Event Button
+              </button>
+              <button
+                id="add-control-widget"
+                type="button"
+                class="rounded-md bg-blue-500 px-3 py-2 text-left text-slate-900 hover:bg-blue-400 text-sm shadow"
+                title="Add a slider that sends a control value"
+              >
+                + Add Control Slider
+              </button>
+              <button
+                id="add-xypad-widget"
+                type="button"
+                class="rounded-md bg-violet-500 px-3 py-2 text-left text-slate-900 hover:bg-violet-400 text-sm shadow"
+                title="Add an XY pad that sends two control values"
+              >
+                + Add XY Pad
+              </button>
+              <div class="mt-3 flex flex-col gap-3 text-[11px] text-slate-300">
+                <div class="flex flex-col gap-1">
+                  <h4 class="uppercase tracking-wide text-slate-400">Layout</h4>
+                  <div class="flex flex-row gap-2">
+                    <button
+                      id="save-layout-local"
+                      type="button"
+                      class="flex-1 rounded-md bg-slate-700 px-2 py-1.5 text-left text-slate-100 hover:bg-slate-600 text-xs shadow"
+                      title="Save this layout to your browser"
+                    >
+                      Save to Browser
+                    </button>
+                    <button
+                      id="load-layout-local"
+                      type="button"
+                      class="flex-1 rounded-md bg-slate-700 px-2 py-1.5 text-left text-slate-100 hover:bg-slate-600 text-xs shadow"
+                      title="Load the last saved layout from your browser"
+                    >
+                      Load from Browser
+                    </button>
+                  </div>
+                  <button
+                    id="clear-layout"
+                    type="button"
+                    class="mt-1 rounded-md bg-red-700 px-2 py-1.5 text-left text-slate-100 hover:bg-red-600 text-xs shadow"
+                    title="Remove all widgets from the canvas"
+                  >
+                    Clear All Widgets
+                  </button>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                  <h4 class="uppercase tracking-wide text-slate-400">JSON</h4>
+                  <div class="flex flex-row gap-2">
+                    <button
+                      id="download-layout-json"
+                      type="button"
+                      class="flex-1 rounded-md bg-slate-700 px-2 py-1.5 text-left text-slate-100 hover:bg-slate-600 text-xs shadow"
+                      title="Download this layout as a JSON file"
+                    >
+                      Download Layout
+                    </button>
+                    <label
+                      for="upload-layout-json"
+                      class="flex-1 inline-flex cursor-pointer rounded-md bg-slate-700 px-2 py-1.5 text-left text-slate-100 hover:bg-slate-600 text-xs shadow"
+                      title="Upload a JSON file to replace this layout"
+                    >
+                      Upload Layout
+                      <input
+                        id="upload-layout-json"
+                        type="file"
+                        accept="application/json,.json"
+                        class="hidden"
+                      />
+                    </label>
+                  </div>
+                  <div class="flex flex-row gap-2">
+                    <button
+                      id="copy-layout-json"
+                      type="button"
+                      class="flex-1 rounded-md bg-slate-700 px-2 py-1.5 text-left text-slate-100 hover:bg-slate-600 text-xs shadow"
+                      title="Copy this layout as JSON"
+                    >
+                      Copy Layout
+                    </button>
+                    <button
+                      id="paste-layout-json"
+                      type="button"
+                      class="flex-1 rounded-md bg-slate-700 px-2 py-1.5 text-left text-slate-100 hover:bg-slate-600 text-xs shadow"
+                      title="Paste JSON to load a layout"
+                    >
+                      Paste &amp; Load Layout
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-2">
+                Drag blocks in the canvas to reorder. Edit headers and
+                parameters inline.
+              </p>
+            </div>
+
+            <!-- Canvas -->
+            <div class="md:col-span-3">
+              <div
+                id="designer-canvas"
+                class="min-h-[200px] rounded-lg bg-slate-900/60 border border-dashed border-slate-600 p-3 grid grid-cols-1 md:grid-cols-2 gap-3"
+                aria-label="Custom interface canvas"
+                role="region"
+              ></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- behavior is in designer.js -->
+  </body>
+</html>
