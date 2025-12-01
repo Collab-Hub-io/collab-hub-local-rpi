@@ -1,10 +1,10 @@
 # Collab-Hub Raspberry Pi Setup (Local LAN Server)
 
-This guide walks through **every step** to turn a blank Raspberry Pi into a local Collab-Hub server. It assumes **very little prior experience**.
+This guide walks through the steps to turn a blank Raspberry Pi into a local Collab-Hub server. It assumes **very little prior experience**. By the end, you'll be able to set your rpi to automatically connect to your local network, automatically start the collab-hub server, and change the connection port if needed.
 
 If anything is confusing or doesn’t work, you can update this file as you learn what works best in your environment.
 
----
+## **12/1/2025**: Updates to the Max and PD clients to be able to change server (remote and local) coming soon.
 
 ## 1. What You Need
 
