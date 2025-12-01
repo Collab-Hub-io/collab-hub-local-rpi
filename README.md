@@ -1,6 +1,6 @@
 # Collab-Hub Raspberry Pi Setup (Local LAN Server)
 
-This guide walks through **every step** to turn a blank Raspberry Pi into a local Collab-Hub server with an OSC bridge. It assumes **very little prior experience**.
+This guide walks through **every step** to turn a blank Raspberry Pi into a local Collab-Hub server. It assumes **very little prior experience**.
 
 If anything is confusing or doesn’t work, you can update this file as you learn what works best in your environment.
 
@@ -18,8 +18,7 @@ If anything is confusing or doesn’t work, you can update this file as you lear
 
 You will eventually need:
 
-- The **Pi’s IP address** (so you can visit the web interface and send OSC).
-- The **IP address of the laptop/desktop** where Max/Pd or other OSC tools are running.
+- The **Pi’s IP address** (so you can visit the Collab-Hub web interface).
 
 ---
 
@@ -119,6 +118,18 @@ You are now logged into the Pi.
 
 ---
 
+### How to disconnect from SSH
+
+When you're done working on the Pi, you can close the SSH session with:
+
+```bash
+exit
+```
+
+or by pressing `Ctrl + D`. Your terminal will return to your local computer.
+
+---
+
 ## 5. Update the Pi and Install System Tools
 
 In the SSH session on the Pi: (you can copy paste each code block and press enter)
@@ -204,7 +215,7 @@ In the project folder on the Pi (e.g. `~/collab-hub-local-rpi`):
 npm install
 ```
 
-This installs packages such as `express`, `socket.io`, `osc`, and `dotenv`.
+This installs packages such as `express`, `socket.io`, and `dotenv`.
 
 If you see errors like `Cannot find module 'lodash'`, that usually means `npm install` hasn’t been run, or the dependency is missing from `package.json`.
 
@@ -229,7 +240,7 @@ sudo npm install -g npm@11.6.4
 
 ## 9. Create and Edit the `.env` File
 
-The `.env` file controls ports and addresses used by the local hub and OSC bridge.
+The `.env` file controls ports and addresses used by the local hub.
 
 From the project folder on the Pi:
 
@@ -242,7 +253,7 @@ Paste something like this (adjust values as needed):
 ```env
 # HTTP port for the web hub
 PORT=3000
-# Where the OSC bridge connects (local hub URL)
+# Hub URL (namespace /hub)
 HUB_URL=http://localhost:3000/hub
 ```
 
@@ -253,7 +264,7 @@ To save and exit in `nano`:
 
 ---
 
-## 10. Start the Local Hub and OSC Bridge
+## 10. Start the Local Hub
 
 Run:
 
@@ -282,7 +293,11 @@ This usually works on:
 
 - **macOS / iOS**: supports `.local` out of the box.
 - **Android**: often works when on the same Wi‑Fi, but can depend on the router.
-- **Windows**: works if Bonjour/mDNS is installed (e.g. via iTunes or Apple Bonjour Print Services).
+- **Windows 10 and later**: most current versions resolve `.local` automatically via mDNS.
+
+  > If `.local` resolution on Windows still does not work, see
+  > Microsoft’s guidance on mDNS and legacy name resolution here:
+  > https://techcommunity.microsoft.com/blog/networkingblog/aligning-on-mdns-ramping-down-netbios-name-resolution-and-llmnr/3290816
 
 3. If `.local` does **not** work (browser can’t find the server), fall back to the Pi’s IP:
 
@@ -296,6 +311,26 @@ hostname -I
 4. You should see the Collab-Hub web interface (e.g. `index.html`).
 
 The client JavaScript should be using `io("/hub")` (no hard-coded URLs), so it connects back to the Pi automatically.
+
+---
+
+## 12. After boot: quick "is it running?" check
+
+If you set up auto-start or started the hub manually and want to quickly
+check that it's running after a reboot:
+
+1. **From a browser on your laptop/phone** (same network as the Pi):
+
+- Visit `http://collabhub.local:3000/`.
+- If the Collab-Hub page loads, the server is running.
+
+2. **From an SSH session on the Pi** (optional terminal check):
+
+```bash
+sudo systemctl status collabhub.service
+```
+
+- If you see `Active: active (running)`, the hub is running.
 
 ---
 
