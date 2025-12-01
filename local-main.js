@@ -3,7 +3,7 @@ const http = require("http");
 const path = require("path");
 const express = require("express");
 const { Server } = require("socket.io");
-const HUB = require("./hub/HUB_class.js").default;
+const HUB = require("./HUB_class.js").default;
 
 const PORT = process.env.PORT || 3000;
 const NAMESPACE = "/hub";
