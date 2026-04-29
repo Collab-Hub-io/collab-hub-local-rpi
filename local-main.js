@@ -37,6 +37,6 @@ io.of(NAMESPACE).on("connection", (socket) => {
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(
-    `[local-hub] Listening on http://0.0.0.0:${PORT} (namespace ${NAMESPACE})`
+    `[local-hub] Listening on http://0.0.0.0:${PORT} (namespace ${NAMESPACE})`,
   );
 });

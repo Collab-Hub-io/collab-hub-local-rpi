@@ -25,15 +25,25 @@ You will eventually need:
 ## 2. Flash Raspberry Pi OS to the SD Card
 
 1. On your main computer, download **Raspberry Pi Imager** from:
-
    - https://www.raspberrypi.com/software
 
 2. Insert the **microSD card** into your computer.
 
 3. Open Raspberry Pi Imager and choose:
-
-   - **Operating System**: `Raspberry Pi OS (32-bit)` (or Lite if you prefer only command line).
+   - **Operating System**: `Raspberry Pi OS (64-bit)` (or Lite if you prefer only command line). **Use the 64-bit version** — Node.js 20 does not support the 32-bit (armhf) architecture.
    - **Storage**: your SD card.
+
+   > **Which OS can my Pi run?**
+   >
+   > | Model                   | Architecture                        | 64-bit OS?          |
+   > | ----------------------- | ----------------------------------- | ------------------- |
+   > | Pi 1, Pi Zero / Zero W  | 32-bit only (ARMv6)                 | No                  |
+   > | Pi 2 (v1.1 and earlier) | 32-bit only (ARMv7)                 | No                  |
+   > | Pi 3, Pi Zero 2 W       | 64-bit capable (ARMv8 / Cortex-A53) | Yes — choose 64-bit |
+   > | Pi 4                    | 64-bit (ARMv8 / Cortex-A72)         | Yes — choose 64-bit |
+   > | Pi 5                    | 64-bit (ARMv8 / Cortex-A76)         | Yes — choose 64-bit |
+   >
+   > Pi 3 and newer can all run the 64-bit OS and are the minimum recommended hardware for this setup. Pi 1, Pi 2, and the original Pi Zero are 32-bit only and **not supported** — Node.js 20 will not install on them.
 
 4. Click the **gear / advanced options** (or similar) and set:
 
@@ -177,6 +187,23 @@ npm -v
 
 You should see version numbers printed (for example `v20.x.x` and `10.x.x`).
 
+> **Troubleshooting — "Unsupported architecture: armhf" error**
+>
+> This means you flashed the **32-bit** version of Raspberry Pi OS. NodeSource no longer provides Node.js 20 for 32-bit ARM (armhf).
+>
+> **Option A (recommended):** Re-flash your SD card with **Raspberry Pi OS (64-bit)** as described in Step 2, then repeat from there.
+>
+> **Option B:** If you need to stay on 32-bit, use `nvm` (Node Version Manager) instead:
+>
+> ```bash
+> curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+> source ~/.bashrc
+> nvm install 20
+> nvm use 20
+> node -v
+> npm -v
+> ```
+
 ---
 
 ## 8. Get the Collab-Hub RPi Bundle onto the Pi
@@ -255,7 +282,23 @@ Paste something like this (adjust values as needed):
 PORT=3000
 # Hub URL (namespace /hub)
 HUB_URL=http://localhost:3000/hub
+
+# Optional auth for osc-bridge client
+# Leave HUB_PASSWORD blank to use passwordless guest auth
+HUB_USERNAME=
+HUB_PASSWORD=
 ```
+
+### osc-bridge Passwordless And Authenticated Modes
+
+The `osc-bridge.js` client now defaults to guest auth when `HUB_PASSWORD` is blank.
+
+Behavior:
+
+1. With both `HUB_USERNAME` and `HUB_PASSWORD`, it logs in through `/api/v1/auth/login`.
+2. With a blank password, it requests a guest session through `/api/v1/auth/guest`.
+3. On auth-related connect errors, it tries `/api/v1/auth/refresh` first, then re-establishes a session.
+4. If auth endpoints are unavailable, it falls back to anonymous socket behavior for older servers.
 
 To save and exit in `nano`:
 
@@ -426,29 +469,23 @@ sudo systemctl enable collabhub.service
 ## 15. Troubleshooting Tips
 
 - **`ssh: Could not resolve hostname collabhub-pi.local`**
-
   - Try using the Pi’s IP address instead of the `.local` name.
   - Make sure the Pi is powered on and connected to the network.
 
 - **`Permission denied` when running `ssh`**
-
   - Double-check the username and password you set in Raspberry Pi Imager.
 
 - **`node: command not found`**
-
   - Re-run the Node.js install commands in step 6.
 
 - **`Cannot find module '...'` when running `node local-main.js` or `npm start`**
-
   - Make sure you ran `npm install` in the project folder on the Pi.
 
 - **Web page doesn’t load at `http://<pi-ip>:3000/`**
-
   - Confirm the server is running: `npm start` logs, or `sudo systemctl status collabhub.service` if using systemd.
   - Check that the Pi and your computer are on the same network.
 
 - **Web page loads but clients fail to connect to the hub**
-
   - Confirm the client code uses `io("/hub")` (origin-relative) and does not hard-code a remote URL.
 
 ---
