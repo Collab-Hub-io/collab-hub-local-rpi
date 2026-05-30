@@ -1,5 +1,7 @@
 require("dotenv").config();
 
+const http = require("http");
+const https = require("https");
 const osc = require("osc");
 const { io } = require("socket.io-client");
 
@@ -11,18 +13,238 @@ const HUB_URL = process.env.HUB_URL || "http://localhost:3000/hub";
 const OSC_IN_PORT = Number(process.env.OSC_IN_PORT || 57120);
 const OSC_OUT_PORT = Number(process.env.OSC_OUT_PORT || 57121);
 const OSC_TARGET_HOST = process.env.OSC_TARGET_HOST || "127.0.0.1";
+const HUB_USERNAME = (process.env.HUB_USERNAME || "").trim();
+const HUB_PASSWORD = process.env.HUB_PASSWORD || "";
+
+const passwordAuthEnabled = HUB_USERNAME.length > 0 && HUB_PASSWORD.length > 0;
+
+const authState = {
+  accessToken: "",
+  refreshToken: "",
+  username: HUB_USERNAME,
+  mode: "",
+};
+
+const AUTH_ERROR_PATTERN = /(token|auth|credential)/i;
+
+const requestJson = (urlString, method, body) =>
+  new Promise((resolve, reject) => {
+    const parsed = new URL(urlString);
+    const payload = body ? JSON.stringify(body) : "";
+    const transport = parsed.protocol === "https:" ? https : http;
+
+    const req = transport.request(
+      {
+        protocol: parsed.protocol,
+        hostname: parsed.hostname,
+        port: parsed.port || undefined,
+        path: `${parsed.pathname}${parsed.search}`,
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(payload),
+        },
+      },
+      (res) => {
+        let responseText = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk) => {
+          responseText += chunk;
+        });
+        res.on("end", () => {
+          let responseBody = {};
+          if (responseText.trim().length > 0) {
+            try {
+              responseBody = JSON.parse(responseText);
+            } catch (_err) {
+              responseBody = { raw: responseText };
+            }
+          }
+
+          resolve({
+            ok: (res.statusCode || 500) >= 200 && (res.statusCode || 500) < 300,
+            status: res.statusCode || 500,
+            payload: responseBody,
+          });
+        });
+      },
+    );
+
+    req.on("error", reject);
+    if (payload.length > 0) {
+      req.write(payload);
+    }
+    req.end();
+  });
+
+const hubOrigin = (() => {
+  const url = new URL(HUB_URL);
+  return `${url.protocol}//${url.host}`;
+})();
+
+const loginWithConfiguredCredentials = async () => {
+  if (!passwordAuthEnabled) {
+    return null;
+  }
+
+  const result = await requestJson(`${hubOrigin}/api/v1/auth/login`, "POST", {
+    username: HUB_USERNAME,
+    password: HUB_PASSWORD,
+  });
+
+  if (
+    !result.ok ||
+    !result.payload.accessToken ||
+    !result.payload.refreshToken
+  ) {
+    const message =
+      result.payload.error || `Login failed with status ${result.status}.`;
+    throw new Error(message);
+  }
+
+  authState.accessToken = result.payload.accessToken;
+  authState.refreshToken = result.payload.refreshToken;
+  authState.username = HUB_USERNAME;
+  authState.mode = "password";
+  console.log(`[auth] login_ok: ${authState.username}`);
+  return authState;
+};
+
+const createGuestSession = async () => {
+  const payload = {};
+  if (HUB_USERNAME.length > 0) {
+    payload.username = HUB_USERNAME;
+  }
+
+  const result = await requestJson(
+    `${hubOrigin}/api/v1/auth/guest`,
+    "POST",
+    payload,
+  );
+
+  if (!result.ok) {
+    if (result.status === 404) {
+      console.log(
+        "[auth] guest_unavailable: server does not support /auth/guest",
+      );
+      return null;
+    }
+
+    const message =
+      result.payload.error ||
+      `Guest login failed with status ${result.status}.`;
+    throw new Error(message);
+  }
+
+  if (!result.payload.accessToken || !result.payload.refreshToken) {
+    throw new Error("Guest login did not return session tokens.");
+  }
+
+  authState.accessToken = result.payload.accessToken;
+  authState.refreshToken = result.payload.refreshToken;
+  authState.username = result.payload.username || HUB_USERNAME || "osc-bridge";
+  authState.mode = "guest";
+  console.log(`[auth] guest_ok: ${authState.username}`);
+  return authState;
+};
+
+const establishInitialSession = async () => {
+  if (passwordAuthEnabled) {
+    return loginWithConfiguredCredentials();
+  }
+  return createGuestSession();
+};
+
+const refreshSocketSession = async () => {
+  if (!authState.refreshToken) {
+    return false;
+  }
+
+  const result = await requestJson(`${hubOrigin}/api/v1/auth/refresh`, "POST", {
+    refreshToken: authState.refreshToken,
+  });
+
+  if (
+    !result.ok ||
+    !result.payload.accessToken ||
+    !result.payload.refreshToken
+  ) {
+    return false;
+  }
+
+  authState.accessToken = result.payload.accessToken;
+  authState.refreshToken = result.payload.refreshToken;
+  console.log(
+    `[auth] ${authState.mode === "guest" ? "refresh_guest_ok" : "refresh_ok"}: ${authState.username}`,
+  );
+  return true;
+};
+
+const applySocketAuth = (socket) => {
+  const username = authState.username || HUB_USERNAME || "osc-bridge";
+  socket.io.opts.query = { username };
+  socket.auth = authState.accessToken ? { token: authState.accessToken } : {};
+};
 
 // Connect to local Collab-Hub as a Socket.IO client
 const socket = io(HUB_URL, {
-  query: { username: "osc-bridge" },
+  query: { username: HUB_USERNAME || "osc-bridge" },
+  transports: ["websocket"],
+  reconnection: true,
+  autoConnect: false,
 });
+
+const bootstrapSocketConnection = async () => {
+  try {
+    if (!authState.accessToken) {
+      await establishInitialSession();
+    }
+  } catch (err) {
+    const message = err && err.message ? err.message : String(err);
+    console.error("[auth] session bootstrap failed:", message);
+  }
+
+  if (!authState.accessToken) {
+    console.log("[auth] anonymous_fallback");
+  }
+
+  applySocketAuth(socket);
+  socket.connect();
+};
 
 socket.on("connect", () => {
   console.log("[osc-bridge] Connected to hub:", HUB_URL);
 });
 
-socket.on("connect_error", (err) => {
+let authRecoveryInFlight = false;
+socket.on("connect_error", async (err) => {
   console.error("[osc-bridge] Connect error:", err.message);
+
+  if (
+    !AUTH_ERROR_PATTERN.test(String(err && err.message ? err.message : err))
+  ) {
+    return;
+  }
+
+  if (authRecoveryInFlight) {
+    return;
+  }
+
+  authRecoveryInFlight = true;
+  try {
+    const refreshed = await refreshSocketSession();
+    if (!refreshed) {
+      await establishInitialSession();
+    }
+    applySocketAuth(socket);
+    socket.connect();
+  } catch (authErr) {
+    const message =
+      authErr && authErr.message ? authErr.message : String(authErr);
+    console.error("[auth] auth_recovery_failed:", message);
+  } finally {
+    authRecoveryInFlight = false;
+  }
 });
 
 // OSC UDP port for in/out
@@ -48,7 +270,7 @@ udpPort.open();
 function normalizeOscArgs(args) {
   if (!args || !args.length) return [];
   return args.map((a) =>
-    a && typeof a === "object" && "value" in a ? a.value : a
+    a && typeof a === "object" && "value" in a ? a.value : a,
   );
 }
 
@@ -89,7 +311,7 @@ udpPort.on("message", (msg) => {
     "header=",
     header,
     "values=",
-    values
+    values,
   );
 
   if (type === "control" && header) {
@@ -105,8 +327,8 @@ udpPort.on("message", (msg) => {
       values.length === 0
         ? ""
         : values.length === 1
-        ? String(values[0])
-        : values.join(" ");
+          ? String(values[0])
+          : values.join(" ");
     if (text) {
       socket.emit("chat", { chat: text, target });
     }
@@ -150,3 +372,5 @@ process.on("SIGINT", () => {
   } catch {}
   process.exit(0);
 });
+
+bootstrapSocketConnection();
